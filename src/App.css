@@ -156,3 +156,41 @@ body {
   color: var(--muted);
   border: 1px solid var(--border) !important;
 }
+
+.systemwide {
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel);
+}
+
+.systemwide-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.systemwide strong {
+  font-size: 13px;
+}
+
+.systemwide-sub {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+  max-width: 60ch;
+}
+
+.systemwide button {
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.systemwide button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

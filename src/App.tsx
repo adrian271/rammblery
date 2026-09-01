@@ -1,5 +1,6 @@
 import { useState, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { SystemWideBanner } from "./SystemWideBanner";
 
 type Suggestion = {
   original: string;
@@ -69,6 +70,8 @@ export default function App() {
         <h1>Rammblery</h1>
         {loading && <span className="status">checking…</span>}
       </header>
+
+      {isTauri && <SystemWideBanner />}
 
       <main className="main">
         <textarea

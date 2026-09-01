@@ -1,8 +1,14 @@
 // Prevents an extra console window on Windows in release builds.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+#[cfg(target_os = "macos")]
+mod ax;
+
 use serde::{Deserialize, Serialize};
 use serde_json::json;
+
+#[cfg(target_os = "macos")]
+use std::sync::Arc;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 struct Suggestion {
@@ -96,12 +102,58 @@ async fn get_suggestions(text: String) -> Result<Vec<Suggestion>, String> {
     Ok(suggestions)
 }
 
+/// macOS Accessibility: is the app currently trusted (permission granted)?
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn ax_is_trusted() -> bool {
+    ax::permission::is_trusted()
+}
+
+/// macOS Accessibility: prompt for permission (and open Settings as a fallback
+/// for when the one-shot system prompt was already dismissed).
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn ax_request_trust() -> bool {
+    let trusted = ax::permission::request_trust();
+    if !trusted {
+        ax::permission::open_settings();
+    }
+    trusted
+}
+
+/// macOS Accessibility: enable/disable the system-wide checking poll loop.
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn ax_set_enabled(state: tauri::State<'_, Arc<ax::AxControl>>, enabled: bool) {
+    state.set_enabled(enabled);
+}
+
 fn main() {
     // Loads .env from the project root (dotenvy walks up parent dirs);
     // fine if missing — the key may come from the shell environment instead.
     let _ = dotenvy::dotenv();
-    tauri::Builder::default()
-        .invoke_handler(tauri::generate_handler![get_suggestions])
+
+    // Simple logger so the AX thread's info! output reaches the terminal.
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
+
+    let builder = tauri::Builder::default();
+
+    #[cfg(target_os = "macos")]
+    let builder = {
+        // Start disabled; the frontend enables it once permission is granted.
+        let ax_control = ax::spawn_ax_thread(false);
+        builder.manage(ax_control).invoke_handler(tauri::generate_handler![
+            get_suggestions,
+            ax_is_trusted,
+            ax_request_trust,
+            ax_set_enabled
+        ])
+    };
+
+    #[cfg(not(target_os = "macos"))]
+    let builder = builder.invoke_handler(tauri::generate_handler![get_suggestions]);
+
+    builder
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
