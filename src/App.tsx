@@ -55,7 +55,7 @@ export default function App() {
     <div className="app">
       <header className="app-header">
         <span className="logo-dot" />
-        <h1>WriteWise</h1>
+        <h1>Rammblery</h1>
         {loading && <span className="status">checking…</span>}
       </header>
 

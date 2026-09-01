@@ -1,7 +1,7 @@
 {
-  "productName": "WriteWise",
+  "productName": "Rammblery",
   "version": "0.1.0",
-  "identifier": "com.adrian.writewise",
+  "identifier": "com.adrian.rammblery",
   "build": {
     "beforeDevCommand": "npm run dev",
     "beforeBuildCommand": "npm run build",
@@ -11,7 +11,7 @@
   "app": {
     "windows": [
       {
-        "title": "WriteWise",
+        "title": "Rammblery",
         "width": 960,
         "height": 640,
         "minWidth": 640,

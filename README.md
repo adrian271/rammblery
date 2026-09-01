@@ -1,4 +1,4 @@
-# WriteWise (Grammarly-clone prototype)
+# Rammblery (Claude-powered Grammarly-style writing assistant)
 
 Phase 1 scaffold: paste-in text box → debounced Claude suggestions → accept/reject cards.
 No OS-level text capture yet (that's Phase 3/4 — see below).
@@ -10,7 +10,7 @@ prerequisites for your OS: https://tauri.app/start/prerequisites/
 
 ```bash
 npm install
-export ANTHROPIC_API_KEY=sk-ant-...   # never hardcode this — the Rust backend reads it from env
+cp .env.example .env   # then put your ANTHROPIC_API_KEY in .env (gitignored)
 npm run tauri dev
 ```
 

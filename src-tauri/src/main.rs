@@ -19,7 +19,7 @@ struct Suggestion {
 #[tauri::command]
 async fn get_suggestions(text: String) -> Result<Vec<Suggestion>, String> {
     let api_key = std::env::var("ANTHROPIC_API_KEY")
-        .map_err(|_| "ANTHROPIC_API_KEY is not set in the environment".to_string())?;
+        .map_err(|_| "ANTHROPIC_API_KEY is not set — add it to the .env file at the project root".to_string())?;
 
     let client = reqwest::Client::new();
 
@@ -97,6 +97,9 @@ async fn get_suggestions(text: String) -> Result<Vec<Suggestion>, String> {
 }
 
 fn main() {
+    // Loads .env from the project root (dotenvy walks up parent dirs);
+    // fine if missing — the key may come from the shell environment instead.
+    let _ = dotenvy::dotenv();
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![get_suggestions])
         .run(tauri::generate_context!())
