@@ -10,6 +10,10 @@ type Suggestion = {
 
 const DEBOUNCE_MS = 1500;
 
+// invoke() only works inside the Tauri webview; in a plain browser tab
+// (e.g. opening the vite URL directly) there's no Rust backend to call.
+const isTauri = "__TAURI_INTERNALS__" in window;
+
 export default function App() {
   const [text, setText] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
@@ -20,6 +24,13 @@ export default function App() {
   const fetchSuggestions = useCallback(async (value: string) => {
     if (!value.trim()) {
       setSuggestions([]);
+      return;
+    }
+    if (!isTauri) {
+      setError(
+        "This page is running in a plain browser tab, so it can't reach the Rust backend. " +
+          "Use the Rammblery desktop window (npm run tauri dev), not the vite URL."
+      );
       return;
     }
     setLoading(true);
