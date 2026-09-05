@@ -7,7 +7,7 @@ edition = "2021"
 tauri-build = { version = "2.0", features = [] }
 
 [dependencies]
-tauri = { version = "2.0", features = [] }
+tauri = { version = "2.0", features = ["macos-private-api"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 reqwest = { version = "0.12", features = ["json"] }
@@ -20,8 +20,14 @@ env_logger = "0.11"
 objc2 = "0.6"
 objc2-foundation = "0.3"
 libc = "0.2"
-objc2-core-foundation = { version = "0.3", features = ["CFString", "CFNumber", "CFDictionary", "CFArray", "CFRunLoop"] }
-objc2-app-kit = { version = "0.3", features = ["NSRunningApplication"] }
+objc2-core-foundation = { version = "0.3", features = ["CFString", "CFNumber", "CFDictionary", "CFArray", "CFRunLoop", "CFCGTypes"] }
+objc2-app-kit = { version = "0.3", features = [
+    "NSRunningApplication",
+    "NSWindow",
+    "NSPanel",
+    "NSResponder",
+    "NSScreen",
+] }
 objc2-application-services = { version = "0.3", features = [
     "HIServices",
     "AXUIElement",

@@ -1,0 +1,7 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "Core permissions for the main editor and the floating suggestion panel.",
+  "windows": ["main", "suggestions"],
+  "permissions": ["core:default"]
+}

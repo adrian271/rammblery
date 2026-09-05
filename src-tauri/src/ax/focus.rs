@@ -11,10 +11,13 @@ use std::time::Duration;
 
 use objc2_application_services::AXUIElement;
 use objc2_core_foundation::CFEqual;
+use tokio::sync::mpsc::UnboundedSender;
 
-use super::text;
+use super::{geometry, text, AxEvent};
 
 const POLL_INTERVAL: Duration = Duration::from_millis(300);
+/// Skip documents larger than this (char count) — checking them is slow and costly.
+const MAX_CHARS: usize = 20_000;
 
 /// Shared control state for the AX thread.
 pub struct AxControl {
@@ -44,19 +47,26 @@ impl AxControl {
 }
 
 /// The poll loop. Runs on the dedicated AX thread. All AXUIElement values stay
-/// on this thread (they are not `Send`).
-pub fn run_poll_loop(control: Arc<AxControl>) {
+/// on this thread (they are not `Send`). Emits `AxEvent`s to the checker.
+pub fn run_poll_loop(control: Arc<AxControl>, tx: UnboundedSender<AxEvent>) {
     // System-wide element used to query the current focused UI element.
     let system_wide = unsafe { AXUIElement::new_system_wide() };
+    let own_pid = std::process::id() as libc::pid_t;
 
     // Last focused element + its last-seen text, to detect changes.
     let mut last_focused: Option<objc2_core_foundation::CFRetained<AXUIElement>> = None;
     let mut last_value: Option<String> = None;
+    let mut session_id: u64 = 0;
 
     while control.running.load(Ordering::SeqCst) {
         std::thread::sleep(POLL_INTERVAL);
 
         if !control.enabled.load(Ordering::SeqCst) {
+            if last_focused.is_some() {
+                // Went idle; tell the checker to hide.
+                session_id += 1;
+                let _ = tx.send(AxEvent::Hide { session_id });
+            }
             last_focused = None;
             last_value = None;
             continue;
@@ -67,6 +77,11 @@ pub fn run_poll_loop(control: Arc<AxControl>) {
             None => continue,
         };
 
+        // Ignore our own windows so the panel/editor don't feed back into checks.
+        if element_pid(&focused) == Some(own_pid) {
+            continue;
+        }
+
         // Did the focused element itself change?
         let focus_changed = match &last_focused {
             Some(prev) => !CFEqual(Some(prev), Some(&focused)),
@@ -76,39 +91,56 @@ pub fn run_poll_loop(control: Arc<AxControl>) {
         let role = text::role(&focused);
         let subrole = text::subrole(&focused);
 
-        // Skip non-text and secure (password) fields.
+        // Only usable text fields, and never secure (password) fields.
         let is_text = matches!(
             role.as_deref(),
             Some("AXTextArea") | Some("AXTextField") | Some("AXComboBox")
         );
         let is_secure = subrole.as_deref() == Some("AXSecureTextField");
+        let usable = is_text && !is_secure;
 
         if focus_changed {
+            session_id += 1;
             let pid = element_pid(&focused);
             let app = pid.and_then(app_name_for_pid);
             log::info!(
-                "[focus] pid={} app={:?} role={:?} subrole={:?} text_field={}",
+                "[focus] session={} pid={} app={:?} role={:?} subrole={:?} usable={}",
+                session_id,
                 pid.unwrap_or(-1),
                 app,
                 role,
                 subrole,
-                is_text && !is_secure
+                usable
             );
             last_focused = Some(focused.clone());
             last_value = None;
-        }
 
-        if !is_text || is_secure {
+            if !usable {
+                let _ = tx.send(AxEvent::Hide { session_id });
+                continue;
+            }
+        } else if !usable {
             continue;
         }
 
+        // Read current value; emit on change (covers both focus-in and edits).
         let value = text::value(&focused);
         if value != last_value {
-            if let Some(v) = &value {
-                let preview: String = v.chars().take(120).collect();
-                log::info!("[value] ({} chars) {:?}", v.chars().count(), preview);
+            last_value = value.clone();
+            if let Some(v) = value {
+                let n = v.chars().count();
+                if n == 0 || n > MAX_CHARS {
+                    let _ = tx.send(AxEvent::Hide { session_id });
+                } else {
+                    let frame = geometry::frame(&focused);
+                    log::info!("[value] session={} ({} chars) frame={:?}", session_id, n, frame);
+                    let _ = tx.send(AxEvent::TextChanged {
+                        session_id,
+                        text: v,
+                        frame,
+                    });
+                }
             }
-            last_value = value;
         }
     }
 }

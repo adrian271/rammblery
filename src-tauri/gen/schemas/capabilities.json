@@ -1,1 +1,1 @@
-{}
+{"default":{"identifier":"default","description":"Core permissions for the main editor and the floating suggestion panel.","local":true,"windows":["main","suggestions"],"permissions":["core:default"]}}
